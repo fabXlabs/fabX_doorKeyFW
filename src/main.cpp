@@ -31,6 +31,7 @@ enum class KeypadCommand : uint8_t {
   TOOL_UNLOCKED,  /** < Tool unlocked */
   TOOL_LOCKED,    /** < Tool locked */
   REBOOT,         /** < Reboot microcontroller */
+  AUTH_FAIL_NOTOOL, /** < Authentication failed, not qualified for any tool */
 };
 
 /**
@@ -52,6 +53,7 @@ enum class KeypadState : uint8_t {
   LOCKED,       /** < Tool locked */
   UNKNOWN_CARD, /** < Authentication failed, card unknown */
   WRONG_CODE,   /** < Authentication failed, code wrong */
+  UNQUALIFIED,  /** < Authentication failed, not qualified for any tool */
 };
 
 /**
@@ -160,6 +162,9 @@ void handleCommand(CommandBuffer* cmd)
     case KeypadCommand::AUTH_FAIL_CODE:
       state.State = KeypadState::WRONG_CODE;
       break;
+    case KeypadCommand::AUTH_FAIL_NOTOOL:
+      state.State = KeypadState::UNQUALIFIED;
+      break;
     case KeypadCommand::TOOL_UNLOCKED:
       state.State = KeypadState::UNLOCKED;
       break;
@@ -240,10 +245,22 @@ void handleInput()
 
 void updateDisplay(const CommandBuffer* cmd)
 {
+  uint32_t invertInterval = 10 * 60 * 1000; // 10 minutes
+  uint32_t logoToggleInterval = 2 * 1000; // 2 seconds
+  bool invert = false;
+  if (state.State == KeypadState::IDLE) {
+    invert = (millis() % (2*invertInterval) > invertInterval);
+  }
+  display.setInverted(invert);
   display.clear();
   switch(state.State) {
     case KeypadState::IDLE:
-      display.drawIdleScreen();
+      if ((millis() % (2*logoToggleInterval) < logoToggleInterval)) {
+        display.drawIdleScreen();
+      }
+      else {
+        display.drawNfcScreen();
+      }
       neoRainbow();
       break;
     case KeypadState::ENTER_CODE:
@@ -258,6 +275,11 @@ void updateDisplay(const CommandBuffer* cmd)
       strip.show();
       break;
     case KeypadState::WRONG_CODE:
+      display.drawCodeVerifiedScreen(false);
+      strip.fill(0xff0000);
+      strip.show();
+      break;
+    case KeypadState::UNQUALIFIED:
       display.drawCodeVerifiedScreen(false);
       strip.fill(0xff0000);
       strip.show();

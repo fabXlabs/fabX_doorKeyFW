@@ -10,7 +10,9 @@ public:
     void begin();
     void clear();
     void pushCanvas();
+    void setInverted(bool inverted);
     void drawIdleScreen();
+    void drawNfcScreen();
     void drawSpiStatusIndicator(bool spiOk);
     void drawCodeScreen(uint32_t code, uint8_t len);
     void drawProgressScreen();
@@ -22,6 +24,8 @@ public:
 private:
   //void drawBitmap(int x, int y, int sx, int sy, unsigned int *data);
     U8G2_SH1106_128X64_NONAME_F_HW_I2C mU8g2;
+    uint8_t mBgColor = 0;
+    uint8_t mFgColor = 1;
 };
 
 U8G2Display::U8G2Display()
@@ -42,9 +46,17 @@ void U8G2Display::begin()
   pushCanvas();
 }
 
+void U8G2Display::setInverted(bool inverted)
+{
+  mBgColor = inverted != 0 ? 1 : 0;
+  mFgColor = inverted != 0 ? 0 : 1;
+}
+
 void U8G2Display::clear()
 {
   mU8g2.clearBuffer();
+  mU8g2.setColorIndex(mBgColor);
+  mU8g2.drawBox(0,0, mU8g2.getWidth(), mU8g2.getHeight());
 }
 
 void U8G2Display::pushCanvas()
@@ -56,19 +68,31 @@ void U8G2Display::drawIdleScreen()
 {
   uint16_t logoXOffset = (mU8g2.getWidth() - fablab_width)/2;
   uint16_t logoYOffset = (mU8g2.getHeight() - fablab_height)/2;
-  mU8g2.setColorIndex(0);
+  mU8g2.setColorIndex(mBgColor);
   mU8g2.drawXBMP(logoXOffset, logoYOffset+7, fablab_width, fablab_height, fablab_bits);
   mU8g2.setFont(u8g2_font_6x10_tr);
-  mU8g2.setColorIndex(1);
+  mU8g2.setColorIndex(mFgColor);
   mU8g2.drawStr(2, 2, "Willkommen im FabLab");
 }
+
+void U8G2Display::drawNfcScreen()
+{
+  uint16_t xOffset = (mU8g2.getWidth() - nfc_width)/2;
+  uint16_t yOffset = (mU8g2.getHeight() - nfc_height)/2;
+  mU8g2.setColorIndex(mBgColor);
+  mU8g2.drawXBMP(xOffset, yOffset+7, nfc_width, nfc_height, nfc_bits);
+  mU8g2.setFont(u8g2_font_6x10_tr);
+  mU8g2.setColorIndex(mFgColor);
+  mU8g2.drawStr(2, 2, "Willkommen im FabLab");
+}
+
 
 void U8G2Display::drawSpiStatusIndicator(bool spiOk)
 {
   if (!spiOk) {
       const uint8_t x = mU8g2.getWidth() - cloud_width;
       const uint8_t y = mU8g2.getHeight() - cloud_height;
-      mU8g2.setColorIndex(1);
+      mU8g2.setColorIndex(mFgColor);
       if (millis() % 500 < 250) {
         mU8g2.drawXBMP(x, y, nocloud_width, nocloud_height, nocloud_bits);
       }
@@ -85,10 +109,10 @@ void U8G2Display::drawSpiDebugScreen(const volatile SpiIrqCount& irqc, int cmd, 
   const uint8_t h = 10;
   const uint8_t w = 40;
   static char buf[128];
-  mU8g2.setDrawColor(0);
+  mU8g2.setDrawColor(mBgColor);
   mU8g2.drawBox(x, y, mU8g2.getWidth(), 2*h);
   mU8g2.setFont(u8g2_font_5x7_tr);
-  mU8g2.setDrawColor(1);
+  mU8g2.setDrawColor(mFgColor);
   snprintf(buf, sizeof(buf), "E:%d", irqc.ERR);
   mU8g2.drawStr(x, y, buf);
   snprintf(buf, sizeof(buf), "S:%d", irqc.SSL);
@@ -109,7 +133,7 @@ void U8G2Display::drawCodeScreen(uint32_t code, uint8_t len)
 {
   static char buf[8];
   u8g2_uint_t textWidth;
-  mU8g2.setColorIndex(1);
+  mU8g2.setColorIndex(mFgColor);
   mU8g2.setFont(u8g2_font_10x20_tr);
   mU8g2.drawStr(0, 2, "PIN eingeben");
   snprintf(buf, sizeof(buf), "%.*lu", len, code);
@@ -128,6 +152,7 @@ void U8G2Display::drawProgressScreen()
   uint16_t xOffset = (mU8g2.getWidth() - LOADER_WIDTH)/2;
   uint16_t yOffset = (mU8g2.getHeight() - LOADER_HEIGHT)/2;
   int frame = (millis() / LOADER_DELAY)  % LOADER_COUNT;
+  mU8g2.setColorIndex(mFgColor);
   mU8g2.drawXBMP(xOffset, yOffset, LOADER_WIDTH, LOADER_HEIGHT, loader_frames[frame]);
 }
 
@@ -135,7 +160,7 @@ void U8G2Display::drawCodeVerifiedScreen(bool codeOk)
 {
   uint16_t xOffset = (mU8g2.getWidth() - ok_width)/2;
   uint16_t yOffset = (mU8g2.getHeight() - ok_height)/2;
-  mU8g2.setColorIndex(0);
+  mU8g2.setColorIndex(mBgColor);
   if (codeOk) {
     mU8g2.drawXBMP(xOffset, yOffset, ok_width, ok_height, ok_bits);
   }
@@ -148,7 +173,7 @@ void U8G2Display::drawLockedScreen(bool locked)
 {
   uint16_t xOffset = (mU8g2.getWidth() - locked_width)/2;
   uint16_t yOffset = (mU8g2.getHeight() - locked_height)/2;
-  mU8g2.setColorIndex(0);
+  mU8g2.setColorIndex(mBgColor);
   if (locked) {
     mU8g2.drawXBMP(xOffset, yOffset, locked_width, locked_height, locked_bits);
   }
@@ -160,6 +185,6 @@ void U8G2Display::drawLockedScreen(bool locked)
 void U8G2Display::drawString(const char* str)
 {
   mU8g2.setFont(u8g2_font_6x10_tr);
-  mU8g2.setColorIndex(1);
+  mU8g2.setColorIndex(mFgColor);
   mU8g2.drawUTF8(2, 32, str);
 }

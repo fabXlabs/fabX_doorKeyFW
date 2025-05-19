@@ -7,6 +7,7 @@
 #include "../assets/unlocked.xbm"
 #include "../assets/cloud.xbm"
 #include "../assets/nocloud.xbm"
+#include "../assets/nfc.xbm"
 
 // Loader animation based on animation circles menu 1
 // by https://wokwi.com/animator, graphics by icons8.com
